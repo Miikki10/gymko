@@ -21,9 +21,17 @@ android {
 
     buildTypes {
         release {
-            optimization {
-                enable = false
-            }
+            // Aktivira R8 za brisanje neiskorištenog koda (code shrinking) i optimizaciju
+            isMinifyEnabled = true
+
+            // Aktivira brisanje neiskorištenih resursa (slika, layouta...) kako bi aplikacija bila što manja
+            isShrinkResources = true
+
+            // Definira zadane Proguard/R8 datoteke za optimizaciju koda
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
         }
     }
     compileOptions {
