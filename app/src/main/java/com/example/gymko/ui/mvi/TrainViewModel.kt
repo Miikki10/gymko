@@ -150,7 +150,7 @@ class TrainViewModel(application: Application) : AndroidViewModel(application), 
                 _state.update { it.copy(deleteExerciseConfirmation = null, deleteWorkoutConfirmation = null) }
             }
             TrainIntent.ShowCreateWorkoutScreen -> {
-                _state.update { it.copy(createWorkoutName = "", createWorkoutExercises = emptyList()) }
+                _state.update { it.copy(editingWorkoutId = null, createWorkoutName = "", createWorkoutExercises = emptyList()) }
                 viewModelScope.launch { _effect.emit(TrainEffect.NavigateToCreateWorkout) }
             }
             is TrainIntent.UpdateCreateWorkoutName -> {
@@ -222,6 +222,7 @@ class TrainViewModel(application: Application) : AndroidViewModel(application), 
                 saveNewWorkout()
             }
             TrainIntent.CancelCreateWorkout -> {
+                _state.update { it.copy(editingWorkoutId = null, createWorkoutName = "", createWorkoutExercises = emptyList()) }
                 viewModelScope.launch { _effect.emit(TrainEffect.NavigateBack) }
             }
         }
@@ -232,7 +233,28 @@ class TrainViewModel(application: Application) : AndroidViewModel(application), 
         if (name.isBlank()) return
         
         viewModelScope.launch {
-            val workoutId = dao.insertWorkout(WorkoutEntity(name = name))
+            val existingWorkout = dao.getWorkoutByName(name)
+            val editingId = _state.value.editingWorkoutId
+
+            if (existingWorkout != null && existingWorkout.id != editingId) {
+                // Another workout with the same name already exists. 
+                // Don't create a duplicate, just exit as requested.
+                _state.update { it.copy(editingWorkoutId = null, createWorkoutName = "", createWorkoutExercises = emptyList()) }
+                _effect.emit(TrainEffect.NavigateBack)
+                return@launch
+            }
+
+            // Either it's a new name or we're editing the one that has this name.
+            val workoutId = if (existingWorkout != null) {
+                // Update existing workout
+                dao.insertWorkout(existingWorkout.copy(name = name))
+            } else {
+                // Create new workout
+                dao.insertWorkout(WorkoutEntity(name = name))
+            }
+
+            // Replace sets for the workout
+            dao.deleteSetsByWorkoutId(workoutId)
             _state.value.createWorkoutExercises.forEachIndexed { exIndex, exState ->
                 exState.sets.forEachIndexed { setIndex, setState ->
                     dao.insertSet(
@@ -246,6 +268,8 @@ class TrainViewModel(application: Application) : AndroidViewModel(application), 
                     )
                 }
             }
+            
+            _state.update { it.copy(editingWorkoutId = null, createWorkoutName = "", createWorkoutExercises = emptyList()) }
             _effect.emit(TrainEffect.NavigateBack)
         }
     }

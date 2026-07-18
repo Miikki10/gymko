@@ -144,6 +144,9 @@ fun ActiveWorkoutScreen(
                     sets = exerciseSets,
                     completedSets = state.completedSets,
                     onToggleSet = { onIntent(ActiveWorkoutIntent.ToggleSet(it)) },
+                    onUpdateSet = { id, w, r -> onIntent(ActiveWorkoutIntent.UpdateSet(id, w, r)) },
+                    onAddSet = { onIntent(ActiveWorkoutIntent.AddSet(workoutId, exercise.id)) },
+                    onRemoveSet = { onIntent(ActiveWorkoutIntent.RemoveSet(it)) },
                     onCheckAll = { onIntent(ActiveWorkoutIntent.ToggleExerciseSets(exercise.id)) }
                 )
             }
@@ -186,8 +189,28 @@ fun ActiveExerciseCard(
     sets: List<SetWithExercise>,
     completedSets: Set<Long>,
     onToggleSet: (Long) -> Unit,
+    onUpdateSet: (Long, Double, Int) -> Unit,
+    onAddSet: () -> Unit,
+    onRemoveSet: (Long) -> Unit,
     onCheckAll: () -> Unit
 ) {
+    var editingSet by remember { mutableStateOf<SetWithExercise?>(null) }
+
+    if (editingSet != null) {
+        EditSetDialog(
+            set = editingSet!!,
+            onDismiss = { editingSet = null },
+            onSave = { weight, reps ->
+                onUpdateSet(editingSet!!.set.id, weight, reps)
+                editingSet = null
+            },
+            onDelete = {
+                onRemoveSet(editingSet!!.set.id)
+                editingSet = null
+            }
+        )
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -227,25 +250,26 @@ fun ActiveExerciseCard(
                     Text("DONE", modifier = Modifier.width(40.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Right)
                 }
 
-                sets.forEachIndexed { index, setWithReps ->
-                    val isDone = completedSets.contains(setWithReps.set.id)
+                sets.sortedBy { it.set.order }.forEachIndexed { index, setWithExercise ->
+                    val isDone = completedSets.contains(setWithExercise.set.id)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(8.dp))
                             .background(if (isDone) MaterialTheme.colorScheme.primary.copy(alpha = 0.05f) else Color.Transparent)
+                            .clickable { editingSet = setWithExercise }
                             .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("${index + 1}", modifier = Modifier.width(30.dp), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("${setWithReps.set.weight}", modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontWeight = FontWeight.Bold)
-                        Text("${setWithReps.set.reps}", modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontWeight = FontWeight.Bold)
+                        Text("${setWithExercise.set.weight}", modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontWeight = FontWeight.Bold)
+                        Text("${setWithExercise.set.reps}", modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center, fontWeight = FontWeight.Bold)
                         
                         Box(
                             modifier = Modifier
                                 .width(40.dp)
                                 .height(32.dp)
-                                .clickable { onToggleSet(setWithReps.set.id) },
+                                .clickable { onToggleSet(setWithExercise.set.id) },
                             contentAlignment = Alignment.CenterEnd
                         ) {
                             Box(
@@ -263,7 +287,77 @@ fun ActiveExerciseCard(
                         }
                     }
                 }
+
+                Button(
+                    onClick = onAddSet,
+                    modifier = Modifier.fillMaxWidth().height(40.dp),
+                    shape = RoundedCornerShape(8.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("ADD SET", style = MaterialTheme.typography.labelLarge)
+                }
             }
         }
     }
+}
+
+@Composable
+fun EditSetDialog(
+    set: SetWithExercise,
+    onDismiss: () -> Unit,
+    onSave: (Double, Int) -> Unit,
+    onDelete: () -> Unit
+) {
+    var weight by remember { mutableStateOf(set.set.weight.toString()) }
+    var reps by remember { mutableStateOf(set.set.reps.toString()) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Edit Set", fontFamily = AntonFontFamily) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                OutlinedTextField(
+                    value = weight,
+                    onValueChange = { weight = it },
+                    label = { Text("Weight (kg)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Decimal)
+                )
+                OutlinedTextField(
+                    value = reps,
+                    onValueChange = { reps = it },
+                    label = { Text("Reps") },
+                    modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number)
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val w = weight.toDoubleOrNull() ?: 0.0
+                    val r = reps.toIntOrNull() ?: 0
+                    onSave(w, r)
+                }
+            ) {
+                Text("SAVE")
+            }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onDelete, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+                    Text("DELETE")
+                }
+                TextButton(onClick = onDismiss) {
+                    Text("CANCEL")
+                }
+            }
+        }
+    )
 }

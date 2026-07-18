@@ -1,6 +1,5 @@
 package com.example.gymko.ui.mvi
 
-import com.example.gymko.data.local.entity.ExerciseEntity
 import com.example.gymko.data.local.relation.WorkoutWithSets
 
 data class ActiveWorkoutState(
@@ -13,6 +12,9 @@ data class ActiveWorkoutState(
 sealed class ActiveWorkoutIntent : MviIntent {
     data class LoadWorkout(val workoutId: Long) : ActiveWorkoutIntent()
     data class ToggleSet(val setId: Long) : ActiveWorkoutIntent()
+    data class UpdateSet(val setId: Long, val weight: Double, val reps: Int) : ActiveWorkoutIntent()
+    data class AddSet(val workoutId: Long, val exerciseId: Long) : ActiveWorkoutIntent()
+    data class RemoveSet(val setId: Long) : ActiveWorkoutIntent()
     object ToggleAllSets : ActiveWorkoutIntent()
     data class ToggleExerciseSets(val exerciseId: Long) : ActiveWorkoutIntent()
     object EndWorkout : ActiveWorkoutIntent()

@@ -125,6 +125,9 @@ class ActiveWorkoutViewModel(application: Application) : AndroidViewModel(applic
                 }
             }
             is ActiveWorkoutIntent.ToggleSet -> toggleSet(intent.setId)
+            is ActiveWorkoutIntent.UpdateSet -> updateSet(intent.setId, intent.weight, intent.reps)
+            is ActiveWorkoutIntent.AddSet -> addSet(intent.workoutId, intent.exerciseId)
+            is ActiveWorkoutIntent.RemoveSet -> removeSet(intent.setId)
             ActiveWorkoutIntent.ToggleAllSets -> toggleAllSets()
             is ActiveWorkoutIntent.ToggleExerciseSets -> toggleExerciseSets(intent.exerciseId)
             ActiveWorkoutIntent.EndWorkout -> endWorkout()
@@ -147,6 +150,39 @@ class ActiveWorkoutViewModel(application: Application) : AndroidViewModel(applic
         }
     }
 
+    private fun updateSet(setId: Long, weight: Double, reps: Int) {
+        viewModelScope.launch {
+            val workout = _state.value.workout ?: return@launch
+            val setWithExercise = workout.sets.find { it.set.id == setId } ?: return@launch
+            dao.updateSet(setWithExercise.set.copy(weight = weight, reps = reps))
+        }
+    }
+
+    private fun addSet(workoutId: Long, exerciseId: Long) {
+        viewModelScope.launch {
+            val workout = _state.value.workout ?: return@launch
+            val exerciseSets = workout.sets.filter { it.set.exerciseId == exerciseId }
+            val lastSet = exerciseSets.maxByOrNull { it.set.order }
+            
+            val newSet = com.example.gymko.data.local.entity.SetEntity(
+                workoutId = workoutId,
+                exerciseId = exerciseId,
+                weight = lastSet?.set?.weight ?: 0.0,
+                reps = lastSet?.set?.reps ?: 0,
+                order = (lastSet?.set?.order ?: 0) + 1
+            )
+            dao.insertSet(newSet)
+        }
+    }
+
+    private fun removeSet(setId: Long) {
+        viewModelScope.launch {
+            val workout = _state.value.workout ?: return@launch
+            val setWithExercise = workout.sets.find { it.set.id == setId } ?: return@launch
+            dao.deleteSet(setWithExercise.set)
+        }
+    }
+
     private fun toggleAllSets() {
         viewModelScope.launch {
             val workout = _state.value.workout ?: return@launch
@@ -166,9 +202,29 @@ class ActiveWorkoutViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private fun endWorkout() {
-        val workout = _state.value.workout?.workout ?: return
+        val workoutWithSets = _state.value.workout ?: return
+        val workout = workoutWithSets.workout
         viewModelScope.launch {
+            // Mark current workout as completed
             dao.updateWorkout(workout.copy(status = WorkoutStatus.COMPLETED, timestamp = System.currentTimeMillis()))
+            
+            // If this workout was started from a template, update the template with these new sets
+            workout.templateId?.let { templateId ->
+                dao.deleteSetsByWorkoutId(templateId)
+                workoutWithSets.sets.forEach { setWithExercise ->
+                    dao.insertSet(
+                        com.example.gymko.data.local.entity.SetEntity(
+                            workoutId = templateId,
+                            exerciseId = setWithExercise.set.exerciseId,
+                            weight = setWithExercise.set.weight,
+                            reps = setWithExercise.set.reps,
+                            order = setWithExercise.set.order,
+                            isCompleted = false // Templates shouldn't have completed sets
+                        )
+                    )
+                }
+            }
+
             // observeDbForActiveWorkout will handle service stop and state clearing
             _effect.emit(ActiveWorkoutEffect.NavigateToOverview)
         }

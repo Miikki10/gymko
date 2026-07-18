@@ -241,15 +241,6 @@ fun WorkoutsSection(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.secondary
             )
-            if (workouts.isNotEmpty()) {
-                Text(
-                    text = "EDIT SPLIT",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.clickable { /* logic */ }
-                )
-            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))

@@ -45,6 +45,9 @@ interface GymKoDao {
     @Query("SELECT * FROM workouts WHERE id = :workoutId")
     suspend fun getWorkoutWithSetsById(workoutId: Long): WorkoutWithSets?
 
+    @Query("SELECT * FROM workouts WHERE name = :name LIMIT 1")
+    suspend fun getWorkoutByName(name: String): WorkoutEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWorkout(workout: WorkoutEntity): Long
 
@@ -63,7 +66,8 @@ interface GymKoDao {
             WorkoutEntity(
                 name = template.workout.name,
                 status = com.example.gymko.data.model.WorkoutStatus.ACTIVE,
-                timestamp = System.currentTimeMillis()
+                timestamp = System.currentTimeMillis(),
+                templateId = templateWorkoutId
             )
         )
         
@@ -94,4 +98,10 @@ interface GymKoDao {
 
     @Update
     suspend fun updateSets(sets: List<SetEntity>)
+
+    @Query("DELETE FROM sets WHERE workoutId = :workoutId")
+    suspend fun deleteSetsByWorkoutId(workoutId: Long)
+
+    @Delete
+    suspend fun deleteSet(set: SetEntity)
 }

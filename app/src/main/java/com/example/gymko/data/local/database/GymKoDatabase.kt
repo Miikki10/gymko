@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
         WorkoutEntity::class,
         SetEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
