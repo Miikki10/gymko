@@ -88,4 +88,10 @@ interface GymKoDao {
     // Sets
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSet(setEntity: SetEntity): Long
+
+    @Update
+    suspend fun updateSet(set: SetEntity)
+
+    @Update
+    suspend fun updateSets(sets: List<SetEntity>)
 }

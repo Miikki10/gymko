@@ -63,7 +63,12 @@ class ActiveWorkoutViewModel(application: Application) : AndroidViewModel(applic
                 val active = workouts.find { it.workout.status == WorkoutStatus.ACTIVE }
                 if (active != null) {
                     val isNew = _state.value.workout?.workout?.id != active.workout.id
-                    _state.update { it.copy(workout = active) }
+                    val completedIds = active.sets.filter { it.set.isCompleted }.map { it.set.id }.toSet()
+                    
+                    _state.update { it.copy(
+                        workout = active,
+                        completedSets = completedIds
+                    ) }
                     
                     if (isNew) {
                         startWorkoutService()
@@ -135,31 +140,28 @@ class ActiveWorkoutViewModel(application: Application) : AndroidViewModel(applic
     }
 
     private fun toggleSet(setId: Long) {
-        _state.update { 
-            val completed = it.completedSets.toMutableSet()
-            if (completed.contains(setId)) completed.remove(setId) else completed.add(setId)
-            it.copy(completedSets = completed)
+        viewModelScope.launch {
+            val workout = _state.value.workout ?: return@launch
+            val setWithExercise = workout.sets.find { it.set.id == setId } ?: return@launch
+            dao.updateSet(setWithExercise.set.copy(isCompleted = !setWithExercise.set.isCompleted))
         }
     }
 
     private fun toggleAllSets() {
-        val allSetIds = _state.value.workout?.sets?.map { it.set.id }?.toSet() ?: emptySet()
-        _state.update { 
-            val newState = if (it.completedSets.size == allSetIds.size) emptySet() else allSetIds
-            it.copy(completedSets = newState)
+        viewModelScope.launch {
+            val workout = _state.value.workout ?: return@launch
+            val allSets = workout.sets
+            val allChecked = allSets.all { it.set.isCompleted }
+            dao.updateSets(allSets.map { it.set.copy(isCompleted = !allChecked) })
         }
     }
 
     private fun toggleExerciseSets(exerciseId: Long) {
-        val exerciseSets = _state.value.workout?.sets?.filter { it.set.exerciseId == exerciseId }?.map { it.set.id } ?: emptyList()
-        _state.update { 
-            val completed = it.completedSets.toMutableSet()
-            if (completed.containsAll(exerciseSets)) {
-                completed.removeAll(exerciseSets)
-            } else {
-                completed.addAll(exerciseSets)
-            }
-            it.copy(completedSets = completed)
+        viewModelScope.launch {
+            val workout = _state.value.workout ?: return@launch
+            val exerciseSets = workout.sets.filter { it.set.exerciseId == exerciseId }
+            val allChecked = exerciseSets.all { it.set.isCompleted }
+            dao.updateSets(exerciseSets.map { it.set.copy(isCompleted = !allChecked) })
         }
     }
 

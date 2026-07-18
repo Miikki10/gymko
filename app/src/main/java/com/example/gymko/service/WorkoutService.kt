@@ -25,7 +25,11 @@ class WorkoutService : Service() {
     private val _duration = MutableStateFlow(0L)
     val duration = _duration.asStateFlow()
 
+    private val _workoutProgress = MutableStateFlow("")
+    val workoutProgress = _workoutProgress.asStateFlow()
+
     private var startTime = 0L
+    private var progressJob: Job? = null
 
     private val NOTIFICATION_ID = 1001
     private val CHANNEL_ID = "workout_channel"
@@ -41,6 +45,25 @@ class WorkoutService : Service() {
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        observeWorkoutProgress()
+    }
+
+    private fun observeWorkoutProgress() {
+        progressJob?.cancel()
+        progressJob = serviceScope.launch {
+            val dao = GymKoDatabase.getDatabase(applicationContext).gymKoDao()
+            dao.getAllWorkoutsWithSets().collect { workouts ->
+                val active = workouts.find { it.workout.status == WorkoutStatus.ACTIVE }
+                if (active != null) {
+                    val completed = active.sets.count { it.set.isCompleted }
+                    val total = active.sets.size
+                    _workoutProgress.value = "Progress: $completed/$total sets"
+                    updateNotification(formatDuration(_duration.value), _workoutProgress.value)
+                } else {
+                    _workoutProgress.value = ""
+                }
+            }
+        }
     }
 
     private var isForeground = false
@@ -62,7 +85,7 @@ class WorkoutService : Service() {
             _duration.value = 0L
         }
         
-        val notification = createNotification(formatDuration(_duration.value))
+        val notification = createNotification(formatDuration(_duration.value), _workoutProgress.value)
         
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -94,7 +117,7 @@ class WorkoutService : Service() {
                     break
                 }
 
-                updateNotification(formatDuration(_duration.value))
+                updateNotification(formatDuration(_duration.value), _workoutProgress.value)
                 delay(1000)
             }
         }
@@ -103,6 +126,8 @@ class WorkoutService : Service() {
     private fun stopWorkout() {
         timerJob?.cancel()
         timerJob = null
+        progressJob?.cancel()
+        progressJob = null
         startTime = 0L
         _duration.value = 0L
         
@@ -130,14 +155,14 @@ class WorkoutService : Service() {
         }
     }
 
-    private fun updateNotification(time: String) {
+    private fun updateNotification(time: String, progress: String) {
         if (!isForeground) return
-        val notification = createNotification(time)
+        val notification = createNotification(time, progress)
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
-    private fun createNotification(time: String): Notification {
+    private fun createNotification(time: String, progress: String): Notification {
         val intent = Intent(this, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
@@ -146,9 +171,11 @@ class WorkoutService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val contentText = if (progress.isNotEmpty()) "Duration: $time | $progress" else "Duration: $time"
+
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Active Workout")
-            .setContentText("Duration: $time")
+            .setContentText(contentText)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentIntent(pendingIntent)
             .setOngoing(true)
