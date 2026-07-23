@@ -37,6 +37,12 @@ abstract class GymKoDatabase : RoomDatabase() {
                     GymKoDatabase::class.java,
                     "gymko_database"
                 )
+                .addCallback(object : RoomDatabase.Callback() {
+                    override fun onOpen(db: SupportSQLiteDatabase) {
+                        super.onOpen(db)
+                        db.execSQL("PRAGMA foreign_keys=ON")
+                    }
+                })
                 .addCallback(DatabaseCallback())
                 .fallbackToDestructiveMigration()
                 .build()

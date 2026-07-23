@@ -233,24 +233,27 @@ class TrainViewModel(application: Application) : AndroidViewModel(application), 
         if (name.isBlank()) return
         
         viewModelScope.launch {
-            val existingWorkout = dao.getWorkoutByName(name)
+            val existingTemplate = dao.getTemplateByName(name)
             val editingId = _state.value.editingWorkoutId
 
-            if (existingWorkout != null && existingWorkout.id != editingId) {
-                // Another workout with the same name already exists. 
-                // Don't create a duplicate, just exit as requested.
+            if (existingTemplate != null && existingTemplate.id != editingId) {
+                // Another template with the same name already exists. 
                 _state.update { it.copy(editingWorkoutId = null, createWorkoutName = "", createWorkoutExercises = emptyList()) }
                 _effect.emit(TrainEffect.NavigateBack)
                 return@launch
             }
 
-            // Either it's a new name or we're editing the one that has this name.
-            val workoutId = if (existingWorkout != null) {
-                // Update existing workout
-                dao.insertWorkout(existingWorkout.copy(name = name))
+            // Create or update the workout, ensuring status is INACTIVE so it shows in Train tab
+            val workoutId = if (existingTemplate != null) {
+                dao.insertWorkout(existingTemplate.copy(name = name, status = WorkoutStatus.INACTIVE))
+            } else if (editingId != null) {
+                val editingWorkout = dao.getWorkoutWithSetsById(editingId)?.workout
+                dao.insertWorkout(
+                    editingWorkout?.copy(name = name, status = WorkoutStatus.INACTIVE) 
+                        ?: WorkoutEntity(id = editingId, name = name, status = WorkoutStatus.INACTIVE)
+                )
             } else {
-                // Create new workout
-                dao.insertWorkout(WorkoutEntity(name = name))
+                dao.insertWorkout(WorkoutEntity(name = name, status = WorkoutStatus.INACTIVE))
             }
 
             // Replace sets for the workout

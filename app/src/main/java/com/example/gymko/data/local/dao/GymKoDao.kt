@@ -48,6 +48,9 @@ interface GymKoDao {
     @Query("SELECT * FROM workouts WHERE name = :name LIMIT 1")
     suspend fun getWorkoutByName(name: String): WorkoutEntity?
 
+    @Query("SELECT * FROM workouts WHERE name = :name AND status != 'COMPLETED' LIMIT 1")
+    suspend fun getTemplateByName(name: String): WorkoutEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertWorkout(workout: WorkoutEntity): Long
 
