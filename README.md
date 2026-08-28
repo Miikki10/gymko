@@ -48,3 +48,6 @@ Aplikacija je građena prateći **Modern Android Development (MAD)** preporuke:
 1. Kloniraj repozitorij:
    ```bash
    git clone [https://github.com/TvojUsername/GymKo.git](https://github.com/TvojUsername/GymKo.git)
+
+2. Otvori projekt u Android Studio
+3. Pokreni aplikaciju na emulatoru ili fizičkom Android uređaju.
