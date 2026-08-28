@@ -3,7 +3,6 @@
 ![Android](https://img.shields.io/badge/Platform-Android-3DDC84?style=for-the-badge&logo=android&logoColor=white)
 ![Kotlin](https://img.shields.io/badge/Language-Kotlin-7F52FF?style=for-the-badge&logo=kotlin&logoColor=white)
 ![Architecture](https://img.shields.io/badge/Architecture-MVI-blue?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
 
 **GymKo** je moderna Android aplikacija za praćenje treninga i napretka u teretani. Dizajnirana je po *offline-first* principu, što znači da svi podaci ostaju lokalno na uređaju, bez potrebe za internetom ili obaveznom registracijom.
 
@@ -12,8 +11,8 @@
 ## ✨ Key Features
 
 * 📝 **Custom Workout Logging:** Brzo bilježenje serija, ponavljanja i kilaža tijekom treninga.
-* 📊 **Progress Tracking:** Vizualni pregled napretka po vježbama i mišićnim skupinama.
-* ⏱️ **Rest Timer:** Integrirani tajmer za pauze između serija koji radi u pozadini.
+* 📊 **Background Tracking:** Moguće je izaći iz aplikacije tijekom aktivnog workouta i workout će se nastaviti pratiti u pozadini dok ga korisnik ne isključi.
+* ⏱️ **Workout Timer:** Integrirani tajmer koji mjerin trajanje treninga u pozadini.
 * 🔒 **100% Privacy & Offline:** Svi podaci se spremaju isključivo lokalno na uređaju u Room bazi.
 * 🎨 **Modern UI/UX:** Izrađeno u potpunosti pomoću Jetpack Compose-a po Material 3 smjernicama.
 
